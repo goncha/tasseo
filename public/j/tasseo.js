@@ -241,9 +241,9 @@ $('.toolbar ul li.timepanel a.play').text(period + 'min');
 // populate and render our navigation list
 $('.title').on('hover', 'span', function() {
   getDashboards(function(list) {
-    $('.title span').html('<select><option value="/">welcome</option></select>');
+    $('.title span').html('<select><option value="">welcome</option></select>');
     for (var i in list) {
-      if (list[i] === window.location.pathname.replace(/^\//, '')) {
+      if (list[i] === window.location.pathname.split('/').pop()) {
         $('.title select').append('<option selected="selected">' + list[i] + '</option>');
       } else {
         $('.title select').append('<option>' + list[i] + '</option>');
@@ -272,7 +272,10 @@ $('.title span').on('focusout', 'select', function() {
 
 // navigate to selection
 $('.title span').on('change', 'select', function() {
-  window.location.pathname = '/' + $(this).val();
+  var pathname = window.location.pathname.split('/');
+  pathname.pop();
+  pathname.push($(this).val());
+  window.location.pathname = pathname.join('/');
 });
 
 // activate night mode
