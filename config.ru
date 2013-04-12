@@ -1,4 +1,3 @@
-$LOAD_PATH << './lib'
-require "tasseo/web"
+require "./web"
 
 run Tasseo::Web
