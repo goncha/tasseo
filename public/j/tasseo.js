@@ -117,7 +117,7 @@ function getDashboards(cb) {
   $.ajax({
     dataType: 'json',
     error: function(xhr, textStatus, errorThrown) { console.log(errorThrown); },
-    url: '/'
+    url: '.'
   }).done(function(d) {
     cb(d.dashboards);
   });
@@ -239,19 +239,25 @@ var refreshId = setInterval(refreshData, refreshInterval);
 $('.toolbar ul li.timepanel a.play').text(period + 'min');
 
 // populate and render our navigation list
-$('.title').on('hover', 'span', function() {
+function renderNavigationList() {
   getDashboards(function(list) {
-    $('.title span').html('<select><option value="">welcome</option></select>');
+    var spanObj = $('.title span');
+    spanObj.html('<select><option value="">welcome</option></select>');
+    var selectObj = $('.title select');
+    var currentDb = window.location.pathname.split('/').pop();
     for (var i in list) {
-      if (list[i] === window.location.pathname.split('/').pop()) {
-        $('.title select').append('<option selected="selected">' + list[i] + '</option>');
+      if (list[i] === currentDb) {
+        selectObj.append('<option selected="selected">' + list[i] + '</option>');
       } else {
-        $('.title select').append('<option>' + list[i] + '</option>');
+        selectObj.append('<option>' + list[i] + '</option>');
       }
     }
-    $('.title span select').focus();
+    spanObj.off('hover');
+    selectObj.focus();
   });
-});
+}
+
+$('.title').on('hover', 'span', renderNavigationList);
 
 // display description
 $(document).on('mouseenter', 'div.graph', function() {
@@ -267,7 +273,8 @@ $(document).on('mouseleave', 'div.graph', function() {
 
 // clear navigation list on focusout
 $('.title span').on('focusout', 'select', function() {
-  $('.title span').html(window.location.pathname.replace(/^\//, ''));
+  $('.title span').on('hover', renderNavigationList)
+    .html(window.location.pathname.split('/').pop());
 });
 
 // navigate to selection
