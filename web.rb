@@ -2,7 +2,6 @@ require 'sinatra'
 require 'rack-ssl-enforcer'
 require 'haml'
 require 'json'
-require 'sinatra_auth_github'
 
 module Tasseo
   class Web < Sinatra::Base
@@ -13,22 +12,9 @@ module Tasseo
       mime_type :js, 'text/javascript'
       use Rack::SslEnforcer if ENV['FORCE_HTTPS']
       use Rack::Static, :urls => ['/dashboards/']
-
-      set :session_secret, ENV['SESSION_SECRET'] || Digest::SHA1.hexdigest(Time.now.to_f.to_s)
-      set :github_options, { :scopes => "user" }
-
-      if ENV['GITHUB_AUTH_TEAM'] || ENV['GITHUB_AUTH_ORGANIZATION']
-        register Sinatra::Auth::Github
-      end
     end
 
     before do
-      if team = ENV['GITHUB_AUTH_TEAM']
-        github_team_authenticate!(team) unless request.path == '/health'
-      elsif organization = ENV['GITHUB_AUTH_ORGANIZATION']
-        github_organization_authenticate!(organization) unless request.path == '/health'
-      end
-
       find_dashboards
     end
 
@@ -51,7 +37,7 @@ module Tasseo
 
     get '/' do
       if !dashboards.empty?
-        if request.accept.include?('application/json')
+        if request.accept?('application/json')
           content_type 'application/json'
           status 200
           { :dashboards => dashboards }.to_json
@@ -63,7 +49,7 @@ module Tasseo
           }
         end
       else
-        if request.accept.include?('application/json')
+        if request.accept?('application/json')
           content_type 'application/json'
           status 204
         else
