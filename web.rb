@@ -8,7 +8,6 @@ module Tasseo
 
     configure do
       enable :logging
-      enable :sessions
       mime_type :js, 'text/javascript'
       use Rack::SslEnforcer if ENV['FORCE_HTTPS']
       use Rack::Static, :urls => ['/dashboards/']
