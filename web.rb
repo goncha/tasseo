@@ -36,8 +36,10 @@ module Tasseo
     end
 
     get '/' do
+      # AcceptEntry -> String
+      accept = request.accept.map { |x| x.to_str }
       if !dashboards.empty?
-        if request.accept?('application/json')
+        if accept.include?('application/json')
           content_type 'application/json'
           status 200
           { :dashboards => dashboards }.to_json
@@ -49,7 +51,7 @@ module Tasseo
           }
         end
       else
-        if request.accept?('application/json')
+        if accept.include?('application/json')
           content_type 'application/json'
           status 204
         else
