@@ -1,162 +1,145 @@
+$(function () {
 
-var graphs = [];        // rickshaw objects
-var datum = [];         // metric data
-var aliases = [];       // alias strings
-var descriptions = [];  // description strings
-var realMetrics = [];   // non-false targets
+var graphs;           // plot object
+var aliases;          // alias strings
+var descriptions;     // description strings
+var realMetrics;      // non-false targets
+var graphiteUrl;      // graphite render url
 
+
+// Defined in DASHBOARD.js
 // minutes of data in the live feed
 var period = (typeof period == 'undefined') ? 5 : period;
+// wrap keepLastValue around target to pad null values
+var padnulls = (typeof padnulls == 'undefined') ? true : padnulls;
+
 
 // gather our non-false targets
 function gatherRealMetrics() {
-  var falseTargets = 0;
-  for (var i=0; i<metrics.length; i++) {
-    if (metrics[i].target === false) {
-    falseTargets++;
+  realMetrics = $.map(metrics, function(metric){
+    if (metric.target === false) {
+      return undefined;
     } else {
-      realMetrics[i - falseTargets] = metrics[i];
+      return metric;
     }
-  }
+  });
 }
+
 
 // build our graph objects
 function constructGraphs() {
-  for (var i=0; i<realMetrics.length; i++) {
-    aliases[i] = realMetrics[i].alias || realMetrics[i].target;
-    descriptions[i] = realMetrics[i].description || null;
-    datum[i] = [{ x:0, y:0 }];
-    graphs[i] = new Rickshaw.Graph({
-      element: document.querySelector('.graph' + i),
-      width: 348,
-      height: 100,
-      interpolation: 'step-after',
-      renderer: 'area',
-      stroke: true,
-      series: [{
-        name: aliases[i],
-        color: '#afdab1',
-        data: datum[i]
-      }]
-    });
-    graphs[i].render();
-  }
-}
-
-// construct url
-var myUrl;
-var padnulls = (typeof padnulls == 'undefined') ? true : padnulls;
-function constructUrl(period) {
-  var targets = '';
-  for (var i=0; i<realMetrics.length; i++) {
-    if (i != 0) {
-      targets += '&';
-    }
-    if (padnulls === true) {
-      targets += ('target=keepLastValue(' + encodeURI(realMetrics[i].target) + ')');
-    } else {
-      targets += ('target=' + encodeURI(realMetrics[i].target));
-    }
-  }
-  myUrl = url + '/render/?' + targets + '&from=-' + period + 'minutes&format=json';
-}
-
-// refresh the graph
-function refreshData(immediately) {
-
-  getData(function(values) {
-    for (var i=0; i<graphs.length; i++) {
-      for (var j=0; j<values[i].length; j++) {
-        if (typeof values[i][j] !== 'undefined') {
-          datum[i][j] = values[i][j];
-        }
-      }
-
-      // check our thresholds and update color
-      var lastValue = datum[i][datum[i].length - 1].y;
-      var warning = realMetrics[i].warning;
-      var critical = realMetrics[i].critical;
-      if (critical > warning) {
-        if (lastValue >= critical) {
-          graphs[i].series[0].color = '#d59295';
-        } else if (lastValue >= warning) {
-          graphs[i].series[0].color = '#f5cb56';
-        } else {
-          graphs[i].series[0].color = '#afdab1';
-        }
-      } else {
-        if (lastValue <= critical) {
-          graphs[i].series[0].color = '#d59295';
-        } else if (lastValue <= warning) {
-          graphs[i].series[0].color = '#f5cb56';
-        } else {
-          graphs[i].series[0].color = '#afdab1';
-        }
-      }
-      // we want to render immediately, i.e.
-      // as soon as ajax completes
-      // used for time period / pause view
-      if (immediately) {
-        updateGraphs(i);
-      }
-    }
-    values = null;
+  aliases = $.map(realMetrics, function(metric) {
+    return metric.alias || metric.target;
+  });
+  descriptions = $.map(realMetrics, function(metric) {
+    return metric.description || "";
   });
 
-  // we can wait until all data is gathered, i.e.
-  // the live refresh should happen synchronously
-  if (!immediately) {
-    for (var i=0; i<graphs.length; i++) {
-      updateGraphs(i);
-    }
-  }
+  // global grid options
+  var gridOptions = {
+    grid: {
+    show: false
+    },
+    xaxis: {
+    tickFormatter: function() { return ""; }
+    },
+    yaxis: {
+    tickFormatter: function() { return ""; }
+    },
+    colors: ['#afdab1']
+  };
+
+  graphs = $.map(realMetrics, function(metric, i) {
+    var series = [{
+      data: [[0,0]],
+      lines: { fill: true }
+    }];
+
+    return $.plot('.plot' + i, series, gridOptions);
+  });
 }
+
+
+// construct url
+function constructUrl(period) {
+  graphiteUrl = url + '/render?' + $.map(realMetrics, function(metric) {
+    if (padnulls === true) {
+      return ('target=keepLastValue(' + encodeURI(metric.target) + ')');
+    } else {
+      return ('target=' + encodeURI(metric.target));
+    }
+  }).join("&") + '&from=-' + period + 'minutes&format=json';
+}
+
+
+// refresh the graph
+function refreshData() {
+  // graphiteUrl is global
+  getData(graphiteUrl, function(i, target) {
+    // normalize datapoints
+    var xzero = target.datapoints[0][1];
+    var d = $.map(target.datapoints, function(d) {
+      return [[d[1]-xzero, d[0]]];
+    });
+
+    // check our thresholds and update color
+    var lastValue = d[d.length-1][1];
+    var warning = realMetrics[i].warning;
+    var critical = realMetrics[i].critical;
+    var color = null;
+    if (lastValue != null) {
+      if (lastValue >= critical) {
+        color = '#d59295';
+      } else if (lastValue >= warning) {
+        color = '#f5cb56';
+      } else {
+        color = '#afdab1';
+      }
+    }
+
+    updateGraph(i, d, color);
+  });
+}
+
 
 // retrieve dashboard list
 function getDashboards(cb) {
-  $.ajax({
-    dataType: 'json',
-    error: function(xhr, textStatus, errorThrown) { console.log(errorThrown); },
-    url: '.'
-  }).done(function(d) {
+  $.getJSON(".", function(d) {
     cb(d.dashboards);
+  }).fail(function(xhr, textStatus, errorThrown) {
+    console.log(errorThrown);
   });
 }
 
+
 // retrieve the data from Graphite
-function getData(cb) {
-  var myDatum = [];
-  $.ajax({
-    beforeSend: function(xhr) {
-      if (auth.length > 0) {
-        var bytes = Crypto.charenc.Binary.stringToBytes(auth);
-        var base64 = Crypto.util.bytesToBase64(bytes);
-        xhr.setRequestHeader('Authorization', 'Basic ' + base64);
-      }
-    },
-    dataType: 'json',
-    error: function(xhr, textStatus, errorThrown) { console.log(errorThrown); },
-    url: myUrl
-  }).done(function(d) {
-    if (d.length > 0) {
-      for (var i=0; i<d.length; i++) {
-        myDatum[i] = [];
-        for (var j=0; j<d[i].datapoints.length; j++) {
-          myDatum[i][j] = { x: d[i].datapoints[j][1], y: d[i].datapoints[j][0] };
-        }
-      } 
+function getData(url, cb) {
+  $.getJSON(url, function(targets) {
+    if (targets.length > 0) {
+      // call cb on each targets
+      $.each(targets, cb);
     }
-    cb(myDatum);
+  }).fail(function(xhr, textStatus, errorThrown) {
+    console.log(errorThrown);
   });
 }
+
 
 // perform the actual graph object and
 // overlay name and number updates
-function updateGraphs(i) {
-  // update our graph
-  graphs[i].update();
-  if (datum[i][datum[i].length - 1] !== undefined) {
-    var lastValue = datum[i][datum[i].length - 1].y;
+function updateGraph(i, data, color) {
+  // update graph
+  var g = graphs[i];
+   // must call before plot.setData to change color immediately
+  if (color) g.getOptions().colors = [ color ];
+  g.setData([{data: data, lines: { fill: true }}]);
+  g.setupGrid();
+  g.draw();
+
+  // update overlay
+  var lastPoint = data[data.length-1];
+  if (lastPoint !== undefined) {
+    var lastValue = lastPoint[1];
     var lastValueDisplay;
     if ((typeof lastValue == 'number') && lastValue < 2.0) {
       lastValueDisplay = Math.round(lastValue*1000)/1000;
@@ -177,6 +160,7 @@ function updateGraphs(i) {
   }
 }
 
+
 // add our containers
 function buildContainers() {
   var falseTargets = 0;
@@ -189,7 +173,8 @@ function buildContainers() {
       var link_open = 'link' in metrics[i] ? '<a href="' + metrics[i].link + '" target="_new">' : '';
       var link_close = 'link' in metrics[i] ? '</a>' : '';
       var graph_div =
-        '<div id="' + j + '" class="graph graph' + j + '">' +
+        '<div id="' + j + '" class="graph">' +
+        '<div class="plot plot' + j + '"></div>' +
         '<span class="description description' + j + '"></span>' +
         link_open + '<div class="overlay-name overlay-name' + j + '"></div>' + link_close +
         '<div class="overlay-number overlay-number' + j + '"></div>' +
@@ -198,6 +183,7 @@ function buildContainers() {
     }
   }
 }
+
 
 // filter out false targets
 gatherRealMetrics();
@@ -210,6 +196,7 @@ constructGraphs();
 
 // build our url
 constructUrl(period);
+
 
 // set our theme
 var myTheme = (typeof theme == 'undefined') ? 'default' : theme;
@@ -229,10 +216,10 @@ for (var i=0; i<graphs.length; i++) {
     $('.overlay-number' + i).html('<img src="./i/spin.gif" />');
   }
 }
-refreshData('now');
+refreshData();
 
 // define our refresh and start interval
-var refreshInterval = (typeof refresh == 'undefined') ? 2000 : refresh;
+var refreshInterval = (typeof refresh == 'undefined') ? 10000 : refresh;
 var refreshId = setInterval(refreshData, refreshInterval);
 
 // set our 'live' interval hint
@@ -289,7 +276,7 @@ $('.title span').on('change', 'select', function() {
 function enableNightMode() {
   $('body').addClass('night');
   $('div.title h1').addClass('night');
-  $('div.graph svg').css('opacity', '0.8');
+  $('div.graph div.plot').css('opacity', '0.8');
   $('span.description').addClass('night');
   $('div.overlay-name').addClass('night');
   $('div.overlay-number').addClass('night');
@@ -300,7 +287,7 @@ function enableNightMode() {
 function disableNightMode() {
   $('body').removeClass('night');
   $('div.title h1').removeClass('night');
-  $('div.graph svg').css('opacity', '1.0');
+  $('div.graph div.plot').css('opacity', '1.0');
   $('span.description').removeClass('night');
   $('div.overlay-name').removeClass('night');
   $('div.overlay-number').removeClass('night');
@@ -329,7 +316,7 @@ $('.toolbar ul li.timepanel').on('click', 'a.range', function() {
   $('.toolbar ul li.timepanel a.play').text('paused');
   $(this).parent('li').parent('ul').find('li').removeClass('selected');
   $(this).parent('li').addClass('selected');
-  refreshData('now');
+  refreshData();
   clearInterval(refreshId);
 });
 
@@ -340,17 +327,14 @@ $('.toolbar ul li.timepanel').on('click', 'a.play', function() {
   $(this).parent('li').addClass('selected');
   $(this).removeClass('pause');
   $('.toolbar ul li.timepanel a.play').text(period + 'min');
-  refreshData('now');
+  refreshData();
   // explicitly clear the old Interval in case
   // someone 'doubles up' on the live play button
   clearInterval(refreshId);
-  // remove and recreate the original graphs[]
-  // helps clear out any rendering artifacts
-  $('.graph svg').remove();
-  constructGraphs();
   // reapply our style settings if night mode is active
   if ($('body').hasClass('night')) { enableNightMode(); }
   // restart our refresh interval
   refreshId = setInterval(refreshData, refreshInterval);
 });
 
+}); // END $()

@@ -1,4 +1,3 @@
-
 * {
   font-family: Helvetica;
 }
@@ -126,13 +125,16 @@ div.nav {
   float: left;
   padding: 10px;
   margin: 10px;
-}
-
-.false {
   width: 350px;
   height: 104px;
 }
 
+.plot {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
 .graph a {
   color: #000;
 }
