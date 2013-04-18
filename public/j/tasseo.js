@@ -259,8 +259,8 @@ $(document).on('mouseleave', 'div.graph', function() {
 
 // clear navigation list on focusout
 $('.title span').on('focusout', 'select', function() {
-  $('.title span').on('hover', renderNavigationList)
-    .html(window.location.pathname.split('/').pop());
+  $('.title span').html(window.location.pathname.split('/').pop());
+  $('.title').on('hover', 'span', renderNavigationList);
 });
 
 // navigate to selection
