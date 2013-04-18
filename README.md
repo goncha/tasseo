@@ -85,7 +85,7 @@ var metrics =
 
 ## Deployment
 
-The only required environment variable is `GRAPHITE_URL`. This should be set to the base URL of your Graphite composer (e.g. `https://graphite.yourdomain.com`). If your server requires Basic Auth, you can set the `GRAPHITE_AUTH` variable (e.g. `username:password`).
+The only required environment variable is `GRAPHITE_URL`. This should be set to the base URL of your Graphite composer (e.g. `https://graphite.yourdomain.com`). ~~If your server requires Basic Auth, you can set the `GRAPHITE_AUTH` variable (e.g. `username:password`).~~
 
 ### Development
 
@@ -93,22 +93,14 @@ The only required environment variable is `GRAPHITE_URL`. This should be set to 
 $ rvm use 1.9.2
 $ bundle install
 $ export GRAPHITE_URL=...
-$ export GRAPHITE_AUTH=... # e.g. username:password (optional)
-$ foreman start
-$ open http://127.0.0.1:5000
+$ rackup
+$ open http://127.0.0.1:9292
 ```
 
 ### Production
 
-```bash
-$ export DEPLOY=production/staging/you
-$ heroku create -r $DEPLOY -s cedar tasseo-$DEPLOY
-$ heroku config:set -r $DEPLOY GRAPHITE_URL=...
-$ heroku config:set -r $DEPLOY GRAPHITE_AUTH=...
-$ git push $DEPLOY master
-$ heroku scale -r $DEPLOY web=1
-$ heroku open -r $DEPLOY
-```
+See https://library.linode.com/frameworks/sinatra/debian-6-squeeze for an example.
+
 
 ## Graphite Server Configuration
 
@@ -134,22 +126,11 @@ If your Graphite composer is proteced by basic authentication, you have to ensur
 
 See http://blog.rogeriopvl.com/archives/nginx-and-the-http-options-method/ for an Nginx example.
 
-## GitHub Authentication
-
-To authenticate against a GitHub organization, set the following environment variables:
-
-```bash
-$ export GITHUB_CLIENT_ID=<id>
-$ export GITHUB_CLIENT_SECRET=<secret>
-$ export GITHUB_AUTH_ORGANIZATION=<org>
-```
-
-To register an OAuth application, go here: https://github.com/settings/applications
-
 
 ## License
 
 Tasseo is distributed under a 3-clause BSD license. Third-party software libraries included with this project are distributed under their respective licenses.
 
-* d3.js - [3-clause BSD](https://github.com/mbostock/d3/blob/master/LICENSE)
-* Rickshaw - [MIT](https://github.com/shutterstock/rickshaw)
+* jquery.js - [MIT](https://github.com/jquery/jquery/blob/master/MIT-LICENSE.txt)
+* jquery.flot.js - [IOLA and Ole Laursen](https://github.com/flot/flot/blob/master/LICENSE.txt)
+* excanvas.js - [Apache License Version 2.0](http://code.google.com/p/explorercanvas/source/browse/trunk/COPYING)
