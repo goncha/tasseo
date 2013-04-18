@@ -228,8 +228,8 @@ $('.toolbar ul li.timepanel a.play').text(period + 'min');
 // populate and render our navigation list
 function renderNavigationList() {
   getDashboards(function(list) {
-    var spanObj = $('.title span');
-    spanObj.html('<select><option value="">welcome</option></select>');
+    $('.title').off('hover', 'span');
+    $('.title span').html('<select><option value="">welcome</option></select>');
     var selectObj = $('.title select');
     var currentDb = window.location.pathname.split('/').pop();
     for (var i in list) {
@@ -239,7 +239,6 @@ function renderNavigationList() {
         selectObj.append('<option>' + list[i] + '</option>');
       }
     }
-    spanObj.off('hover');
     selectObj.focus();
   });
 }
